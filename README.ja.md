@@ -1,6 +1,7 @@
+<div align="center">
+
 # command-executor MCP サーバー
 
-<div align="center">
    <img src="assets/header.svg" alt="Command Executor MCP Server"/>
    
    <a href="README.md"><img src="https://img.shields.io/badge/english-document-white.svg" alt="EN doc"></a>
