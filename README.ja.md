@@ -2,7 +2,7 @@
 
 # command-executor MCP サーバー
 
-   <img src="assets/header.svg" alt="Command Executor MCP Server"/>
+   <img src="https://raw.githubusercontent.com/Sunwood-ai-labs/command-executor-mcp-server/refs/heads/master/assets/header.svg" alt="Command Executor MCP Server"/>
    
    <a href="README.md"><img src="https://img.shields.io/badge/english-document-white.svg" alt="EN doc"></a>
    <a href="README.ja.md"><img src="https://img.shields.io/badge/ドキュメント-日本語-white.svg" alt="JA doc"/></a>
