@@ -10,6 +10,10 @@
 
 A Model Context Protocol server for executing pre-approved commands securely.
 
+## 🎥 Demo
+
+https://github.com/user-attachments/assets/ed763a12-b685-4e0b-b9a5-bc948a590f51
+
 ## ✨ Features
 
 - Secure command execution with pre-approved command list

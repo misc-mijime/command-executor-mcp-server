@@ -10,6 +10,10 @@
 
 事前に承認されたコマンドを安全に実行するためのModel Context Protocolサーバーです。
 
+## 🎥 デモ
+
+https://github.com/user-attachments/assets/ed763a12-b685-4e0b-b9a5-bc948a590f51
+
 ## ✨ 特徴
 
 - 事前承認されたコマンドリストによる安全な実行

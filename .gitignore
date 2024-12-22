@@ -4,3 +4,7 @@ build/
 .env*
 tasks
 tmp/
+example/terraform/.terraform
+example/terraform/.terraform.lock.hcl
+example/terraform/terraform.tfstate
+example/terraform/terraform.tfstate.backup
