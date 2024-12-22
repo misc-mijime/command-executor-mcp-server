@@ -10,7 +10,7 @@
 
 A Model Context Protocol server for executing pre-approved commands securely.
 
-## Features
+## ✨ Features
 
 - Secure command execution with pre-approved command list
 - Configurable allowed commands through environment variables
@@ -19,7 +19,7 @@ A Model Context Protocol server for executing pre-approved commands securely.
 - Error handling and security validations
 - Real-time command output streaming
 
-## Installation
+## 🚀 Installation
 
 Install dependencies:
 ```bash
@@ -36,9 +36,9 @@ For development with auto-rebuild:
 npm run watch
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-### Allowed Commands
+### 🔒 Allowed Commands
 
 By default, the following commands are allowed:
 - git
@@ -55,7 +55,7 @@ You can customize the allowed commands by setting the `ALLOWED_COMMANDS` environ
 export ALLOWED_COMMANDS=git,ls,mkdir,python
 ```
 
-### Claude Desktop Integration
+### 🔌 Claude Desktop Integration
 
 To use with Claude Desktop, add the server config:
 
@@ -80,7 +80,7 @@ Configuration example:
 }
 ```
 
-## Security Considerations
+## 🛡️ Security Considerations
 
 The command-executor server implements several security measures:
 
@@ -104,9 +104,9 @@ The command-executor server implements several security measures:
    - Environment variables can be controlled
    - Limited system access
 
-## Development
+## 💻 Development
 
-### Project Structure
+### 📁 Project Structure
 
 ```
 command-executor/
@@ -119,7 +119,7 @@ command-executor/
 └─ package.json     # Project configuration
 ```
 
-### Debugging
+### 🐛 Debugging
 
 Since MCP servers communicate over stdio, debugging can be challenging. We recommend using the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
 
@@ -129,7 +129,7 @@ npm run inspector
 
 The Inspector will provide a URL to access debugging tools in your browser.
 
-## Tool API
+## 🛠️ Tool API
 
 The server provides a single tool:
 
@@ -175,7 +175,7 @@ Error Response:
 }
 ```
 
-## Error Handling
+## ❌ Error Handling
 
 The server provides detailed error messages for various scenarios:
 
@@ -200,7 +200,7 @@ The server provides detailed error messages for various scenarios:
    }
    ```
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create your feature branch
@@ -208,6 +208,6 @@ The server provides detailed error messages for various scenarios:
 4. Push to the branch
 5. Create a new Pull Request
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
