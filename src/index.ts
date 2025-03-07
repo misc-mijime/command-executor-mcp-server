@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -7,28 +9,18 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
 // 許可されたコマンドのプレフィックスリスト（環境変数から取得、デフォルト値を設定）
-const DEFAULT_ALLOWED_COMMANDS = [
-  'git',
-  'ls',
-  'mkdir',
-  'cd',
-  'npm',
-  'npx',
-  'python'
-];
+const DEFAULT_ALLOWED_COMMANDS = ['git', 'ls', 'mkdir', 'cd', 'npm', 'npx', 'python'];
 
 const getAllowedCommands = (): string[] => {
   const envCommands = process.env.ALLOWED_COMMANDS;
   if (!envCommands) {
     return DEFAULT_ALLOWED_COMMANDS;
   }
-  return envCommands.split(',').map(cmd => cmd.trim());
+  return envCommands.split(',').map((cmd) => cmd.trim());
 };
 
 class CommandExecutorServer {
@@ -47,11 +39,11 @@ class CommandExecutorServer {
         capabilities: {
           tools: {},
         },
-      }
+      },
     );
 
     this.setupToolHandlers();
-    
+
     // エラーハンドリング
     this.server.onerror = (error) => console.error('[MCP Error]', error);
     process.on('SIGINT', async () => {
@@ -63,7 +55,7 @@ class CommandExecutorServer {
   private isCommandAllowed(command: string): boolean {
     // コマンドの最初の部分（スペース区切りの最初の単語）を取得
     const commandPrefix = command.split(' ')[0];
-    return this.allowedCommands.some(allowed => commandPrefix === allowed);
+    return this.allowedCommands.some((allowed) => commandPrefix === allowed);
   }
 
   private setupToolHandlers() {
@@ -88,10 +80,7 @@ class CommandExecutorServer {
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (request.params.name !== 'execute_command') {
-        throw new McpError(
-          ErrorCode.MethodNotFound,
-          `Unknown tool: ${request.params.name}`
-        );
+        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
       }
 
       const { command } = request.params.arguments as { command: string };
@@ -100,7 +89,7 @@ class CommandExecutorServer {
       if (!this.isCommandAllowed(command)) {
         throw new McpError(
           ErrorCode.InvalidParams,
-          `Command not allowed: ${command}. Allowed commands: ${this.allowedCommands.join(', ')}`
+          `Command not allowed: ${command}. Allowed commands: ${this.allowedCommands.join(', ')}`,
         );
       }
 
