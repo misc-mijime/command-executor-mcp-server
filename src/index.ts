@@ -13,10 +13,10 @@ import {
 
 const execAsync = promisify(exec);
 
-// デフォルトの許可コマンドリスト
+// Default list of allowed commands
 const DEFAULT_ALLOWED_COMMANDS = ['git', 'ls', 'mkdir', 'cd', 'npm', 'npx', 'python'];
 
-// オプションのインターフェース
+// Options interface
 interface CommandExecutorOptions {
   allowCommands?: string[];
   workingDirectory?: string;
@@ -28,10 +28,10 @@ class CommandExecutorServer {
   private workingDirectory: string;
 
   constructor(options: CommandExecutorOptions = {}) {
-    // オプションで渡されたコマンドか、デフォルトコマンドを使用
+    // Use provided commands or default commands
     this.allowedCommands = options.allowCommands || DEFAULT_ALLOWED_COMMANDS;
 
-    // ワーキングディレクトリの設定（指定がない場合はプロセスのカレントディレクトリ）
+    // Set working directory (use process current directory if not specified)
     this.workingDirectory = options.workingDirectory
       ? path.resolve(options.workingDirectory)
       : process.cwd();
@@ -50,7 +50,7 @@ class CommandExecutorServer {
 
     this.setupToolHandlers();
 
-    // エラーハンドリング
+    // Error handling
     this.server.onerror = (error) => console.error('[MCP Error]', error);
     process.on('SIGINT', async () => {
       await this.server.close();
@@ -59,7 +59,7 @@ class CommandExecutorServer {
   }
 
   private isCommandAllowed(command: string): boolean {
-    // コマンドの最初の部分（スペース区切りの最初の単語）を取得
+    // Get the first part of the command (first word in space-separated string)
     const commandPrefix = command.split(' ')[0];
     return this.allowedCommands.some((allowed) => commandPrefix === allowed);
   }
@@ -69,17 +69,17 @@ class CommandExecutorServer {
       tools: [
         {
           name: 'execute_command',
-          description: '事前に許可されたコマンドを実行します',
+          description: `Execute a pre-approved command. Valid commands include: ${this.allowedCommands.join(', ')}. Use with caution and only execute trusted commands.`,
           inputSchema: {
             type: 'object',
             properties: {
               command: {
                 type: 'string',
-                description: '実行するコマンド',
+                description: 'Command to execute (e.g., "git clone", "ls -la", "npm install")',
               },
               workingDirectory: {
                 type: 'string',
-                description: 'コマンド実行時のワーキングディレクトリ（オプション）',
+                description: 'Working directory for command execution (optional)',
               },
             },
             required: ['command'],
@@ -98,7 +98,7 @@ class CommandExecutorServer {
         workingDirectory?: string;
       };
 
-      // コマンドが許可されているか確認
+      // Check if command is allowed
       if (!this.isCommandAllowed(command)) {
         throw new McpError(
           ErrorCode.InvalidParams,
@@ -107,7 +107,7 @@ class CommandExecutorServer {
       }
 
       try {
-        // コマンド実行時のディレクトリ決定（引数 > デフォルト設定 > カレントディレクトリ）
+        // Determine execution directory (argument > default setting > current directory)
         const executionDirectory = workingDirectory
           ? path.resolve(workingDirectory)
           : this.workingDirectory;
@@ -152,7 +152,7 @@ class CommandExecutorServer {
 export default CommandExecutorServer;
 
 const determineServerOptions = () => {
-  // コマンドライン引数の処理
+  // Process command line arguments
   const allowCommandsArgIndex = process.argv.findIndex((arg) => arg.startsWith('--allowCommands='));
   const workingDirectoryArgIndex = process.argv.findIndex((arg) =>
     arg.startsWith('--workingDirectory='),
@@ -160,21 +160,21 @@ const determineServerOptions = () => {
 
   const options: CommandExecutorOptions = {};
 
-  // 許可コマンドの引数処理
+  // Handle allowed commands argument
   if (allowCommandsArgIndex !== -1) {
     const commandsArg = process.argv[allowCommandsArgIndex].split('=')[1];
     options.allowCommands = commandsArg.split(',').map((cmd) => cmd.trim());
   } else if (process.env.ALLOWED_COMMANDS) {
-    // 環境変数の確認
+    // Check environment variable
     options.allowCommands = process.env.ALLOWED_COMMANDS.split(',').map((cmd) => cmd.trim());
   }
 
-  // ワーキングディレクトリの引数処理
+  // Handle working directory argument
   if (workingDirectoryArgIndex !== -1) {
     const dirArg = process.argv[workingDirectoryArgIndex].split('=')[1];
     options.workingDirectory = dirArg;
   } else if (process.env.WORKING_DIRECTORY) {
-    // 環境変数の確認
+    // Check environment variable
     options.workingDirectory = process.env.WORKING_DIRECTORY;
   }
 
