@@ -1,6 +1,4 @@
-import { exec } from 'node:child_process';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -13,21 +11,28 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
 
-const execAsync = promisify(exec);
+import {
+  ExecutionEnvironment,
+  type Executor,
+  type ExecutorOptions,
+  createExecutor,
+} from './executors/index.js';
 
 // Default list of allowed commands
-export const DEFAULT_ALLOWED_COMMANDS = ['git', 'ls', 'mkdir', 'npm', 'npx', 'python'];
+export const DEFAULT_ALLOWED_COMMANDS = ['git', 'ls', 'mkdir', 'npm', 'npx', 'python', 'make'];
 
 // Options interface
 interface CommandExecutorOptions {
   allowCommands?: string[];
   workingDirectory?: string;
+  executorOptions?: ExecutorOptions;
 }
 
 class CommandExecutorServer {
   private server: Server;
   private allowedCommands: string[];
   private workingDirectory: string;
+  private executor: Executor;
 
   constructor(options: CommandExecutorOptions = {}) {
     // Set allowed commands list.
@@ -43,6 +48,9 @@ class CommandExecutorServer {
     this.workingDirectory = options.workingDirectory
       ? path.resolve(options.workingDirectory)
       : process.cwd();
+
+    // Create the appropriate executor based on the execution environment
+    this.executor = createExecutor(options.executorOptions);
 
     this.server = new Server(
       {
@@ -164,9 +172,8 @@ class CommandExecutorServer {
         ? path.resolve(workingDirectory)
         : this.workingDirectory;
 
-      const { stdout, stderr } = await execAsync(command, {
-        cwd: executionDirectory,
-      });
+      // Use the executor to run the command
+      const { stdout, stderr } = await this.executor.execute(command, executionDirectory);
 
       return {
         content: [
@@ -177,7 +184,7 @@ class CommandExecutorServer {
         ],
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : new String(error);
+      const message = error instanceof Error ? error.message : new String(error).toString();
 
       return {
         content: [
@@ -223,7 +230,7 @@ class CommandExecutorServer {
         content: [{ type: 'text', text: `Working directory changed to "${resolvedPath}".` }],
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : new String(error);
+      const message = error instanceof Error ? error.message : new String(error).toString();
       return {
         content: [{ type: 'text', text: `Failed to change working directory: ${message}` }],
         isError: true,
@@ -237,6 +244,10 @@ class CommandExecutorServer {
     console.error('Command Executor MCP server running on stdio');
     console.error('Allowed commands:', this.allowedCommands.join(', '));
     console.error('Default working directory:', this.workingDirectory);
+
+    // Log the executor type being used
+    const executorName = this.executor.constructor.name;
+    console.error(`Using executor: ${executorName}`);
   }
 }
 
