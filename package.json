@@ -11,6 +11,8 @@
     "build"
   ],
   "scripts": {
+    "format": "biome format --write src",
+    "check": "biome check --fix --unsafe src",
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "prepare": "npm run build",
     "watch": "tsc --watch",
@@ -20,7 +22,9 @@
     "@modelcontextprotocol/sdk": "0.6.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.11.24",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^3.0.8"
   }
 }
