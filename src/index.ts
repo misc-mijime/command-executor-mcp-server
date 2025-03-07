@@ -2,6 +2,7 @@
 import { exec } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -9,12 +10,14 @@ import {
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
+  type Result,
 } from '@modelcontextprotocol/sdk/types.js';
+import type { z } from 'zod';
 
 const execAsync = promisify(exec);
 
 // Default list of allowed commands
-const DEFAULT_ALLOWED_COMMANDS = ['git', 'ls', 'mkdir', 'cd', 'npm', 'npx', 'python'];
+const DEFAULT_ALLOWED_COMMANDS = ['git', 'ls', 'mkdir', 'npm', 'npx', 'python'];
 
 // Options interface
 interface CommandExecutorOptions {
@@ -28,10 +31,16 @@ class CommandExecutorServer {
   private workingDirectory: string;
 
   constructor(options: CommandExecutorOptions = {}) {
-    // Use provided commands or default commands
-    this.allowedCommands = options.allowCommands || DEFAULT_ALLOWED_COMMANDS;
+    // Set allowed commands list.
+    // If options.allowCommands is provided, add to the default command list.
+    // Otherwise, use the default list.
+    this.allowedCommands = options.allowCommands
+      ? [...new Set([...DEFAULT_ALLOWED_COMMANDS, ...options.allowCommands])]
+      : DEFAULT_ALLOWED_COMMANDS;
 
-    // Set working directory (use process current directory if not specified)
+    // Set working directory.
+    // If options.workingDirectory is provided, use it.
+    // Otherwise, use the current directory of the process as default.
     this.workingDirectory = options.workingDirectory
       ? path.resolve(options.workingDirectory)
       : process.cwd();
@@ -59,7 +68,7 @@ class CommandExecutorServer {
   }
 
   private isCommandAllowed(command: string): boolean {
-    // Get the first part of the command (first word in space-separated string)
+    // Get the first part of the command (first word in space-separated string).
     const commandPrefix = command.split(' ')[0];
     return this.allowedCommands.some((allowed) => commandPrefix === allowed);
   }
@@ -85,59 +94,142 @@ class CommandExecutorServer {
             required: ['command'],
           },
         },
+        {
+          name: 'add_allow_command',
+          description:
+            'Adds a command to the allowed command list. After adding, the command becomes available for the execute_command tool.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              command: {
+                type: 'string',
+                description: 'Command to allow (e.g., "curl")',
+              },
+            },
+            required: ['command'],
+          },
+        },
+        {
+          name: 'change_working_directory',
+          description:
+            'Changes the default working directory of the server. If no working directory is specified in the execute_command tool, this directory will be used.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workingDirectory: {
+                type: 'string',
+                description: 'Path to the new working directory (e.g., "/tmp/work")',
+              },
+            },
+            required: ['workingDirectory'],
+          },
+        },
       ],
     }));
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      if (request.params.name !== 'execute_command') {
-        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
-      }
+      const toolName = request.params.name;
 
-      const { command, workingDirectory } = request.params.arguments as {
-        command: string;
-        workingDirectory?: string;
-      };
-
-      // Check if command is allowed
-      if (!this.isCommandAllowed(command)) {
-        throw new McpError(
-          ErrorCode.InvalidParams,
-          `Command not allowed: ${command}. Allowed commands: ${this.allowedCommands.join(', ')}`,
-        );
-      }
-
-      try {
-        // Determine execution directory (argument > default setting > current directory)
-        const executionDirectory = workingDirectory
-          ? path.resolve(workingDirectory)
-          : this.workingDirectory;
-
-        const { stdout, stderr } = await execAsync(command, {
-          cwd: executionDirectory,
-        });
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: stdout || stderr,
-            },
-          ],
-        };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : new String(error);
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Command execution failed: ${message}`,
-            },
-          ],
-          isError: true,
-        };
+      switch (toolName) {
+        case 'execute_command':
+          return this.handleExecuteCommand(request);
+        case 'add_allow_command':
+          return this.handleAddAllowCommand(request);
+        case 'change_working_directory':
+          return this.handleChangeWorkingDirectory(request);
+        default:
+          throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${toolName}`);
       }
     });
+  }
+
+  private async handleExecuteCommand(
+    request: z.infer<typeof CallToolRequestSchema>,
+  ): Promise<Result> {
+    const { command, workingDirectory } = request.params.arguments as {
+      command: string;
+      workingDirectory?: string;
+    };
+
+    // Check if command is allowed.
+    if (!this.isCommandAllowed(command)) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Command not allowed: ${command}. Allowed commands: ${this.allowedCommands.join(', ')}`,
+      );
+    }
+
+    try {
+      // Determine execution directory (argument > default setting > current directory).
+      const executionDirectory = workingDirectory
+        ? path.resolve(workingDirectory)
+        : this.workingDirectory;
+
+      const { stdout, stderr } = await execAsync(command, {
+        cwd: executionDirectory,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: stdout || stderr,
+          },
+        ],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : new String(error);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Command execution failed: ${message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  private async handleAddAllowCommand(
+    request: z.infer<typeof CallToolRequestSchema>,
+  ): Promise<Result> {
+    const { command } = request.params.arguments as { command: string };
+
+    if (this.allowedCommands.includes(command)) {
+      return {
+        content: [{ type: 'text', text: `Command "${command}" is already in the allow list.` }],
+      };
+    }
+
+    this.allowedCommands.push(command);
+    return {
+      content: [
+        { type: 'text', text: `Command "${command}" added to the allow list.` },
+        { type: 'text', text: `Current allow list: ${this.allowedCommands.join(', ')}` },
+      ],
+    };
+  }
+
+  private async handleChangeWorkingDirectory(
+    request: z.infer<typeof CallToolRequestSchema>,
+  ): Promise<Result> {
+    const { workingDirectory } = request.params.arguments as { workingDirectory: string };
+
+    try {
+      const resolvedPath = path.resolve(workingDirectory);
+      this.workingDirectory = resolvedPath;
+      return {
+        content: [{ type: 'text', text: `Working directory changed to "${resolvedPath}".` }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : new String(error);
+      return {
+        content: [{ type: 'text', text: `Failed to change working directory: ${message}` }],
+        isError: true,
+      };
+    }
   }
 
   async run() {
@@ -152,7 +244,7 @@ class CommandExecutorServer {
 export default CommandExecutorServer;
 
 const determineServerOptions = () => {
-  // Process command line arguments
+  // Process command line arguments.
   const allowCommandsArgIndex = process.argv.findIndex((arg) => arg.startsWith('--allowCommands='));
   const workingDirectoryArgIndex = process.argv.findIndex((arg) =>
     arg.startsWith('--workingDirectory='),
@@ -160,21 +252,35 @@ const determineServerOptions = () => {
 
   const options: CommandExecutorOptions = {};
 
-  // Handle allowed commands argument
+  // Handle allowed commands argument.
   if (allowCommandsArgIndex !== -1) {
+    // Get default allowed command list.
+    const defaultAllowedCommandsSet = new Set(DEFAULT_ALLOWED_COMMANDS);
+    // Get additional allowed commands from command line arguments and add to Set (remove duplicates).
     const commandsArg = process.argv[allowCommandsArgIndex].split('=')[1];
-    options.allowCommands = commandsArg.split(',').map((cmd) => cmd.trim());
+    for (const cmd of commandsArg.split(',').map((cmd) => cmd.trim())) {
+      defaultAllowedCommandsSet.add(cmd);
+    }
+    // Convert Set to array and set to options.allowCommands.
+    options.allowCommands = Array.from(defaultAllowedCommandsSet);
   } else if (process.env.ALLOWED_COMMANDS) {
-    // Check environment variable
-    options.allowCommands = process.env.ALLOWED_COMMANDS.split(',').map((cmd) => cmd.trim());
+    // Similarly, add to the default list when getting allowed commands from environment variables.
+    // Get default allowed command list.
+    const defaultAllowedCommandsSet = new Set(DEFAULT_ALLOWED_COMMANDS);
+    // Get additional allowed commands from environment variables and add to Set (remove duplicates).
+    for (const cmd of process.env.ALLOWED_COMMANDS.split(',').map((cmd) => cmd.trim())) {
+      defaultAllowedCommandsSet.add(cmd);
+    }
+    // Convert Set to array and set to options.allowCommands.
+    options.allowCommands = Array.from(defaultAllowedCommandsSet);
   }
 
-  // Handle working directory argument
+  // Handle working directory argument.
   if (workingDirectoryArgIndex !== -1) {
     const dirArg = process.argv[workingDirectoryArgIndex].split('=')[1];
     options.workingDirectory = dirArg;
   } else if (process.env.WORKING_DIRECTORY) {
-    // Check environment variable
+    // Working directory can also be obtained from environment variables.
     options.workingDirectory = process.env.WORKING_DIRECTORY;
   }
 
